@@ -9,7 +9,7 @@ Email: xzx1602@mail.ustc.edu.cn | [CV](CV_Zixi Xia.pdf)
 ## Numerical Reproduction of Quantum Thermalization
 **Investigation of the Eigenstate Thermalization Hypothesis (ETH) in the Adapted Caldeira-Leggett Model**
 
-Code: [repo](ACLModel/code) | Report: [pdf](ACLModel/Equilibration_and_Thermalization_in_the_Adapted_Caldeira_Leggett_Model.pdf)
+Code: [repo](https://github.com/bob-xia/bob-xia.github.io/tree/main/ACLModel/code) | Report: [pdf](ACLModel/Equilibration_and_Thermalization_in_the_Adapted_Caldeira_Leggett_Model.pdf)
 
 This project is an **independent reproduction and numerical validation** of the Adapted Caldeira-Leggett (ACL) model, originally proposed by Albrecht et al. (2022). The goal was to investigate the microscopic mechanisms of decoherence and the validity of the Eigenstate Thermalization Hypothesis (ETH) in finite open quantum systems. This is also the course project of *Computational Physics* (graduate course).
 

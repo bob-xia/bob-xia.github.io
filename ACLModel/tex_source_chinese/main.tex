@@ -1,0 +1,709 @@
+%!TEX program = xelatex
+% 完整编译: xelatex -> biber/bibtex -> xelatex -> xelatex
+\documentclass[lang=cn,11pt,a4paper]{elegantpaper}
+
+\title{计算物理课程大作业\\Adapted Caldeira-Leggett 模型及其应用——平衡与“热化”}
+\author{PB22000057 夏子汐\\邮箱：xzx1602@mail.ustc.edu.cn}
+\institute{中国科学技术大学, 少年班学院}
+
+\date{\zhtoday}
+
+% 本文档命令
+\usepackage{array}
+\newcommand{\ccr}[1]{\makecell{{\color{#1}\rule{1cm}{1cm}}}}
+
+\usepackage{mathtools}
+\usepackage{braket}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+该报告基于论文\cite{e24030316}，研究了在 Adapted Caldeira–Leggett （ACL）模型中的平衡（equilibration）过程。ACL模型是一个可以用于数值计算、用于研究谐振子与环境之间量子退相干现象的简单模型（“toy model”）。在某些参数下，系统反映出了“热化”（thermalization）的性质。这种性质与总体本征态的内在性质有关，同时这种性质也是某些大很多的真实系统中遍历性行为的一个缩影。
+
+\keywords{平衡；热化；量子纠缠；封闭系统；有限系统}
+\end{abstract}
+
+\section{背景介绍}
+Andreas Albrecht 与 Rose Baunach 于2021年在arxiv上发表论文，提出了ACL模型（\cite{PhysRevResearch.5.023187}，于2023年发表在正式期刊 Physical Review Research 上，晚于论文\cite{e24030316}的发表时间），用于观察谐振子于环境之间的退相干（decoherence）和环境诱导超选择（environment-induced superselection，einselection \cite{PhysRevLett.70.1187}），相比于 Caldeira-Leggett 模型更容易数值求解\cite{CALDEIRA1983587}。ACL模型随着时间演化会自然到达平衡态。在这位作者 Andreas Albrecht 的另一篇论文\cite{PhysRevD.106.123507}中他得到了一个平衡态，为了研究ACL模型能否支持其平衡态，于是写下了这篇论文\cite{e24030316}，也是接下来要研究的内容。
+
+本报告更加深入研究ACL模型中的平衡态。各种平衡行为都是可行的，有一部分体现出了类似“热化”的行为。初始参数的设置决定了系统是否会有“热化”或者其他行为。在ACL模型的设计中，它就体现了一系列实际的物理性质，可以在有限的计算量下有效地计算退相干现象。
+
+很多的时候极大的量子系统的某些性质只由少数的量决定（例如CL模型中尽管每个振子可以有各不相同的角频率、质量等，总的行为只由$B(t),\gamma(t)$等量确定，参见\ref{ZCL}节，以及\cite{PhysRevD.77.063506,PhysRevD.91.043529}），这是因为在演化过程中具有“平衡”、“热化”等过程抹去了一些自由度。什么样的系统会有这种现象？该报告探索了ACL模型中的一部分行为。
+
+
+
+\section{主要模型和计算方法}
+\subsection{Adapted Caldeira-Leggett 模型}
+普通 Caldeira-Leggett 模型可以表示为（\cite{CALDEIRA1983587}，相关结论见\ref{ZCL}节）
+\begin{equation}
+    H=H_A+H_I+H_B=\cfrac{p^2}{2M}+v(x)+x\sum_k{C_kR_k}+\sum_k\cfrac{p_k^2}{2m}+\sum_k\cfrac12m\omega_k^2R_k^2
+    \label{eq:CL}
+\end{equation}
+其物理意义为：一个在势场下的粒子（中心粒子）受到了一系列环境（论文中称为Reservoir）谐振子的线性耦合作用。$C_k$为耦合常数，$\omega_k$为环境粒子的振荡频率。
+
+CL模型最大的问题是难以数值求解。改良的CL模型（Adapted Caldeira-Leggett model, ACL模型\cite{PhysRevResearch.5.023187}）利用近似方法将求解空间变为一个有限大的Hilbert空间。考虑中心粒子（论文中称为 system）的希尔伯特空间为$s$，外界环境的希尔伯特空间为$e$，那么总的希尔伯特空间表示为张量积$s\otimes e$（张量积详见\ref{TensorProduct}节）。类比CL模型式\ref{eq:CL}，全局（论文中称为 world）哈密顿量$H_w$也可以分为三个部分：
+\begin{equation}
+    H_w=H_s\otimes\mathbf{1}^e+H^I+\mathbf{1}^s\otimes H_e
+    \label{eq:ACL}
+\end{equation}
+其中$H^I=q_s\otimes H_e^I$为中心粒子与环境的相互作用项，$q_s$为中心粒子的坐标（与CL模型一样，该模型也是一维的）。
+
+论文\cite{PhysRevResearch.5.023187}中给出了一幅描述环境态和谐振子态相互作用的图，见图\ref{fig:1}。
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.4\linewidth]{1.png}
+    \caption{相互作用项$q_s\otimes H_e^I$可以将环境状态沿着一个由$H_e^I$（图中标注有误）决定的路径移动，用实线表示。如果能够与环境态耦合的$q$态数量增加，那么这种跃迁的速率也会增加。如果$[H_e^I,H_e]\neq0$，那么$H_e$可以起到使得演化偏离上述路径的作用，偏离程度与出发点有关（与$q$成正比），用虚线表示。一些不变的性质可以有效加快计算效率。摘自参考文献\cite{PhysRevResearch.5.023187}的Figure 1。}
+    \label{fig:1}
+\end{figure}
+
+利用简谐振子的能量本征态分解中心粒子的波函数，形成希尔伯特空间$s$，其具有的性质详见\ref{SHO}节。相互作用项和环境自身项分别为：
+\begin{equation}
+    H_e^I=E_IR_L^e+E_I^0,\quad\quad
+    H_e=E_eR^e+E_e^0
+\end{equation}
+
+\subsubsection{反映系统与环境纠缠程度的量——von Neumann 熵}
+系统初始的态可以表示为环境态和系统态的乘积，是纯态，定义密度矩阵：
+\begin{equation*}
+    \rho_s=Tr_e(\ket{\psi}\bra{\psi}),\rho_e=Tr_s(\ket{\psi}\bra{\psi}),\rho_w=\ket{\psi}\bra{\psi}
+\end{equation*}
+为对总体密度矩阵求部分（环境/系统）迹的结果，定义 von Neumann 熵（\cite{PhysRevResearch.5.023187}中的式子是错的）：
+\begin{equation}
+    S=-tr(\rho_s\ln\rho_s)=-tr(\rho_e\ln\rho_e)
+\end{equation}
+因为对于任意态$\ket{\phi}$，
+\begin{equation*}
+    \bra{\phi}\rho_{s/e}\ket{\phi}=\bra{\phi}_{s/e}\ket{\psi}_{s/e}\bra{\psi}_{s/e}\ket{\phi}_{s/e}
+\end{equation*}
+为非负实数（角标表示态在子空间中的分量），说明密度矩阵（半）正定。那么熵在数值上等于（$\lambda_i$为$\rho_s$或者$\rho_e$的特征值，注意$0\ln0=0$）
+\begin{equation*}
+    S=-\sum_i\lambda_i\ln\lambda_i
+\end{equation*}
+设$\rho_s$和$\rho_e$的维度分别为$N_s$和$N_e$（即对应希尔伯特子空间的维度），那么熵的最大值为：
+\begin{equation*}
+    S_{max}=\ln(\min(N_s,N_e));
+\end{equation*}
+如果记$N=\min(N_s,N_e)$，则熵取最大值时本征值应该均为$\frac1N$，密度矩阵为
+\begin{equation*}
+    \rho=\cfrac1NI_n
+\end{equation*}
+下标与$N$对应子空间相同。
+
+\subsubsection{能量分布}
+定义能量概率：
+\begin{equation*}
+    P_s(E)=diag(\rho_s^E),P_e(E)=diag(\rho_e^E)
+\end{equation*}
+表明了处于能量$E$（$E$一般只能取谐振子本征能量或者环境本征态能量）的概率。其中“对角项”应该以本征态作为基，需要在求解时先对态进行基的转换。
+
+同样以全局本征态为基，也可以定义全局的能量概率：
+\begin{equation*}
+    P_w(E)=diag(\rho_w^E)=diag(\ket{\psi}_w\bra{\psi}_w)
+\end{equation*}
+
+\subsubsection{有效维度}\label{EffectiveDim}
+论文\cite{e24030316}中定义有效维度为（$E_i$为全局能量本征值）
+\begin{equation}
+    d_{eff}^w=\cfrac{1}{\sum_i(P_w(E_i))^2}
+    \label{eq:EffD}
+\end{equation}
+由于$\sum_iP_w(E_i)=1$，上式中
+\begin{equation*}
+    \sum_i(P_w(E_i))^2\geq\cfrac{(\sum_iP_w(E_i)^2}{N_w}=\cfrac{1}{N_w}
+\end{equation*}
+其中$N_w=N_sN_e$指的是总希尔伯特空间的维数。说明有效维度最大为$N_w$，取等号的条件为量子态在每个能量本征态上取到的概率相同。
+
+
+\subsection{计算方法}
+\subsubsection{无量纲化}
+设$\hbar=1,m=1,\omega=1$，那么谐振子能量本征值为$E_n=n+\frac12$，坐标可以表示为$q_s=\frac{1}{\sqrt2}(a+a^\dagger)$，相干态（见\ref{CoherentStates}节）的坐标矩阵元也可以表示为（式\ref{eq:CS_q}）
+\begin{equation*}
+    \bra{\alpha(t)}q_s\ket{\alpha(t)}=\frac{1}{\sqrt2}(\alpha e^{-i\omega t}+\overline{\alpha}e^{i\omega t})=\sqrt{2}|\alpha|\cos(\omega t-\arg(\alpha))
+\end{equation*}
+    
+\subsubsection{希尔伯特空间与哈密顿量}
+实际计算中不能处理谐振子本征态的无穷维希尔伯特空间，需要进行截断。假设截断导致本征态只有$N_s$个，那么与不截断（untruncated）的谐振子的不同之处在于：
+\begin{equation*}
+    a^{\dagger}\ket{N_s-1}=0\ket{}
+\end{equation*}
+$a^{\dagger}$为上升（产生）算符。论文中体现为（与论文中形式有一点区别）：
+\begin{equation*}
+    [a,a^\dagger]=1+\Delta,\quad\quad\bra{i}\Delta\ket{j}=-N_s\delta_{i,N_s-1}\delta_{j,N_s-1}
+\end{equation*}
+证明如下：
+\begin{align*}
+    \bra{N_s-1}\Delta\ket{N_s-1}=&\bra{N_s-1}(aa^\dagger-a^\dagger a-1)\ket{N_s-1}\\
+    =&\bra{N_s-1}0\ket{}-(\sqrt{N_s-1}\ket{N_s-2})^\dagger(\sqrt{N_s-1}\ket{N_s-2})-1\\
+    =&1-N_s-1=-N_s
+\end{align*}
+实际计算中取$N_s=30$，即只保留量子数为$0\sim29$的态。
+
+由于“环境”的量子态不确定，假设可以展开到一组基（对应希尔伯特空间为$e$）下，取维度$N_e=600$。那么总的希尔伯特空间由两者张量积得到，维度为$N_w=18000$。
+
+考虑随机的相互作用，可以设$R_I^e$和$R^e$为随机的厄米矩阵（独立元素的实部和虚部分别在$[-0.5,0.5]$上均匀分布），不随时间变化；$E_l$和$E_e$是标量，标定了能量的尺度。为方便起见，假设偏置项$E_I^0=0$和$E_e^0=0$。
+    
+\subsubsection{初态的选取（还可以参见论文\cite{e24030316}的附录A）}\label{InitState}
+相干态$\ket{\alpha}_s=\exp(\alpha a^\dagger-\overline\alpha a)\ket{0}_s$可以很好地维持波动运动而不会出现波函数的展宽（见\ref{CoherentStates}节），同时对应了经典情况下的谐振子的简谐运动。CL模型中中心粒子为经典谐振子，为了与其对照，ACL模型中采用相干态作为中心粒子的初态。
+    
+对于环境态，选取$H_e$的本征态，论文中为了尽量随机的分布，选取的是本征值从小到大排序对应的第$i\in{300,400,450,500,550}$个本征态$\ket{i}_e$作为五个初始状态。实际操作中，由于随机性，本征能量分布几乎均匀，第300个本征能量接近于0，其余递增。
+
+同时论文中还根据环境态调整相干态$\ket{\alpha}_s$的选取，使得总能量$(\bra{i}_e\bra{\alpha}_s)H_w(\ket{\alpha}_s\ket{i}_e)=25$，展开即：
+\begin{equation*}
+    25=(\bra{i}_e\bra{\alpha}_s)H_w(\ket{\alpha}_s\ket{i}_e)=\bra{\alpha}_sH_s\ket{\alpha}_s+\bra{\alpha}_sq_s\ket{\alpha}_s\bra{i}_eH_e^I\ket{i}_e+\bra{i}_eH_e\ket{i}_e
+\end{equation*}
+由于$\ket{i}_e$已经求解了，关于其的矩阵元可以直接确定，关于相干态的矩阵元如下：
+\begin{align*}
+    \bra{\alpha}_sH_s\ket{\alpha}_s
+    =&\sum_{n=0}^{\infty}e^{-\overline{\alpha}\alpha}\cfrac{(\overline{\alpha}\alpha)^n}{n!}\left(n+\frac12\right)\\
+    =&\frac12\sum_{n=0}^{\infty}e^{-\overline{\alpha}\alpha}\cfrac{(\overline{\alpha}\alpha)^n}{n!}+\overline\alpha\alpha\sum_{n=1}^{\infty}e^{-\overline{\alpha}\alpha}\cfrac{(\overline{\alpha}\alpha)^{n-1}}{(n-1)!}\\
+    =&\overline\alpha\alpha+\frac12
+    &\text{由归一性: }\sum_{n=0}^\infty e^{-\overline{\alpha}\alpha}\cfrac{(\overline{\alpha}\alpha)^n}{n!}=1
+\end{align*}
+以及（初态$t=0$）
+\begin{align*}
+    \bra{\alpha}_sq_s\ket{\alpha}_s=\frac{1}{\sqrt2}(\alpha+\overline{\alpha})=\sqrt{2}\Re(\alpha)
+\end{align*}
+假设$\alpha$为实数，得到方程：
+\begin{equation}
+    \alpha^2+(\sqrt{2}\bra{i}_eH_e^I\ket{i}_e)\alpha+(\bra{i}_eH_e\ket{i}_e-\frac{49}{2})=0
+\end{equation}
+
+但是实操中因为要求$\braket{H_w}=25$，某些情况下（例如$i=300$的环境本征态，加上极小的相互作用项）代表谐振子的初始能量应该在25左右，即量子数$n=25$附近的态占有很高的比例，那么截断至$N_s=0\sim29$，同时采用上述近似方法，是不符合常理的，所以应该更改计算方法，不能用无穷求和去近似。
+
+为了保证归一性，相干态为：$\ket{\alpha}=\cfrac{\sum_{n=0}^{29}\frac{\alpha^n}{\sqrt{n!}}\ket{n}}{\sqrt{\sum_{n=0}^{29}\frac{(\overline\alpha\alpha)^n}{n!}}}$，那么代入有（$\hbar\omega=1$）：
+
+\begin{equation*}
+    \bra{\alpha}_sH_s\ket{\alpha}_s
+    =\cfrac{\sum_{n=0}^{29}\cfrac{(\overline{\alpha}\alpha)^n}{n!}\left(n+\frac12\right)}{\sum_{n=0}^{29}\cfrac{(\overline\alpha\alpha)^n}{n!}}
+    =\frac12+\overline\alpha\alpha\cfrac{\sum_{n=1}^{29}\cfrac{(\overline{\alpha}\alpha)^{n-1}}{(n-1)!}}{\sum_{n=0}^{29}\cfrac{(\overline\alpha\alpha)^n}{n!}}
+    =\overline\alpha\alpha\left(1-\cfrac{1}{29!\sum_{n=0}^{29}\cfrac{(\overline\alpha\alpha)^{n-29}}{n!}}\right)+\frac12
+\end{equation*}
+
+\begin{equation*}
+    a\ket\alpha=\cfrac{\sum_{n=0}^{29}\cfrac{\alpha^n}{\sqrt{n!}}a\ket{n}}{\sqrt{\sum_{n=0}^{29}\cfrac{(\overline\alpha\alpha)^n}{n!}}}=\cfrac{\alpha\sum_{n=1}^{29}\cfrac{\alpha^{n-1}}{\sqrt{(n-1)!}}\ket{n-1}}{\sqrt{\sum_{n=0}^{29}\cfrac{(\overline\alpha\alpha)^n}{n!}}}=\alpha\ket{\alpha}-\cfrac{\cfrac{\alpha^{30}}{\sqrt{29!}}}{\sqrt{\sum_{n=0}^{29}\cfrac{(\overline\alpha\alpha)^n}{n!}}}\ket{29}
+\end{equation*}
+
+\begin{align*}
+    \bra{\alpha}_sq_s\ket{\alpha}_s
+    =&\bra{\alpha}\frac{1}{\sqrt2}(a+a^\dagger)\ket{\alpha}
+    =\sqrt{2}\Re(\bra{\alpha}a\ket{\alpha})\\
+    =&\sqrt{2}\Re\left(\alpha-\cfrac{\cfrac{\alpha^{30}}{\sqrt{29!}}}{\sqrt{\sum_{n=0}^{29}\cfrac{(\overline\alpha\alpha)^n}{n!}}}\braket{\alpha|29}\right)
+    =\sqrt{2}\Re\left(\alpha-\cfrac{\cfrac{\alpha^{30}}{\sqrt{29!}}}{\sqrt{\sum_{n=0}^{29}\cfrac{(\overline\alpha\alpha)^n}{n!}}}\cfrac{\cfrac{{\overline\alpha}^{29}}{\sqrt{29!}}}{\sqrt{\sum_{n=0}^{29}\cfrac{(\overline\alpha\alpha)^n}{n!}}}\right)\\
+    =&\sqrt{2}\Re\left(\alpha\left(1-\cfrac{1}{29!\sum_{n=0}^{29}\cfrac{(\overline\alpha\alpha)^{n-29}}{n!}}\right)\right)\\
+\end{align*}
+令
+\begin{equation*}
+    f(\alpha)=1-\cfrac{1}{29!\sum_{n=0}^{29}\cfrac{(\overline\alpha\alpha)^{n-29}}{n!}}
+\end{equation*}
+下面给出了$f(\overline\alpha\alpha)$的图像，见图\ref{fig:2}，说明在$\overline\alpha\alpha>15$的时候，前述近似逐渐开始失效，应该考虑这个因子。
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\linewidth]{2.png}
+    \caption{函数$f(\overline\alpha\alpha)=1-\cfrac{1}{29!\sum_{n=0}^{29}\cfrac{(\overline\alpha\alpha)^{n-29}}{n!}}$的图像，当$\overline\alpha\alpha>15$时近似开始失效，$\overline\alpha\alpha=25$时，带来的误差约有10\%。}
+    \label{fig:2}
+\end{figure}
+
+此时求解一元二次方程问题变为了求解一元非线性方程
+\begin{equation}
+    \left(\alpha^2+\left(\sqrt{2}\bra{i}_eH_e^I\ket{i}_e\right)\alpha\right)f(\alpha)+\bra{i}_eH_e\ket{i}_e-\frac{49}{2}=0
+\end{equation}
+设$\alpha$为实数，可以找到按模最小根$\alpha$。实际求解中一直有实数解。
+    
+\subsubsection{时间演化}
+由上面求得初态
+\begin{equation*}
+    \ket{\psi(t=0)]}=\ket{\alpha(t=0)}_s\otimes\ket{i}_e
+\end{equation*}
+为了得到演化信息，还需要求解$H_w$的本征态和本征向量（由于相互作用项$H_I$的存在，本征态不是系统与环境两者的张量积，不过好在$H_w$与时间无关，能量和本征态都不变），将$\ket{\psi(t=0)}$分解到这些本征态上面：
+\begin{equation*}
+    \ket{\psi(t=0)}=\sum_{i}\beta_i\ket{E_i}
+\end{equation*}
+那么某一个时刻下，
+\begin{equation*}
+    \ket{\psi(t)}=\sum_{i}e^{-i\frac{E_it}{\hbar}}\beta_i\ket{E_i}
+\end{equation*}
+在演化过程中，谐振子、环境、相互作用能量$\braket{H_s},\braket{H_e},\braket{H_I}$的占比会发生变化。
+
+实际操作上，求解的特征向量为18000个列向量，彼此正交归一，矩阵形式为$\psi(t=0)_{n\times1}=E_{n\times n}\beta_{n\times1}$，矩阵$E$为酉矩阵，所以$\beta = E^\dagger\psi(t=0)$（矩阵形式），可以避免求逆。
+\newpage
+
+
+
+\section{模拟结果}
+\subsection{时间演化——平衡与退相干}\label{Dephasing}
+令$E_e=0,E_I=0.02$（若无特殊说明，下同），选取一个初态（利用\ref{InitState}节方法，取生成的最后一个态），模拟时间演化，给出不同时刻能量分布以及熵，如图\ref{fig:3}(a,b)所示。可以看到，谐振子与环境之间发生能量交换，熵增加，之后到达一个具有小幅波动的稳定状态（“平衡”）。
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\linewidth]{3.png}
+    \caption{ACL模型中的平衡（Equilibration）过程：熵增加，能量流动，之后在稳态上进行小的波动。（a）谐振子与环境的纠缠熵的占比$\frac{S}{S_{max}}$，其中$S_{max}=\ln(\min(N_s,N_e))=\ln30$；（b）子系统的能量：$\braket{H_s}$（蓝色）、$\braket{H_e}$（红色），以及相互作用能量$\braket{H_I}$（灰色）}
+    \label{fig:3}
+\end{figure}
+\newpage
+
+稳态是什么样的状态？由于因子$e^{-i\frac{E_i t}{\hbar}}$作用，不同本征态之间的相位发生错乱。说明这是一个“退相位”（dephasing，论文\cite{e24030316}作者指出“退相位”指的是本征态展开项$\beta_i(t)$的相位在时间进展下出现随机化的现象）的过程。为了验证这个想法，可以将\ref{InitState}节中生成的态手动打乱相位进行模拟，与有序对比得到图\ref{fig:4}的结果。与图\ref{fig:3}比较可以验证，该系统会随着时间发展产生所谓的退相位作用。该作用与量子统计力学中的“退相干”（decoherence）概念有很大的关联。
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\linewidth]{4.png}
+    \caption{退相位过程：对比图\ref{fig:3}，增加了初始相位随机的情况（虚线数据），两者在一定时间后相重合，说明上述平衡过程具有退相位的特性。数据：$\braket{H_s}$（蓝色）、$\braket{H_e}$（红色）、$\braket{H_I}$（灰色）、熵$\frac{S}{S_{max}}$（蓝色）。}
+    \label{fig:4}
+\end{figure}
+\newpage
+
+
+\subsection{无需“热化”的平衡态}
+选取不同的初始态（\ref{InitState}节生成的5个），给出类似图\ref{fig:3}的能量和熵随时间的演化图，见图\ref{fig:5}。总能量均为25，虽然初始的系统/环境能量各不相同，热学中，总能量相同的两物体，无论初始温度各是多少，最后都会达到所谓的同一个热平衡态。但是这里不同初始态的情况下，并没有演化到一个相同的平衡态，有着比原来小的能量差，在论文中也用“thermalize”（热化）这个词描述。
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\linewidth]{5.png}
+    \caption{在不同的初始条件下的结果（使用不同线形表示，其中实线线形对应图\ref{fig:3}中的态），这些初始条件总能量与图\ref{fig:3}结果保持一致。与热力学平衡不同，不同初始条件得到的平衡态不同。数据：$\braket{H_s}$（蓝色）、$\braket{H_e}$（红色）、$\braket{H_I}$（灰色）、熵$\frac{S}{S_{max}}$（蓝色）。}
+    \label{fig:5}
+\end{figure}
+\newpage
+
+
+\subsection{随机性的影响}
+维持$E_e=0,E_I=0.02$，使用不同的随机数生成$H_e$和$H_e^I$，进行与\ref{Dephasing}节相同的操作（初态同样的选取方法），也同样进行手动打乱相位的测试，画在一幅图上，见图\ref{fig:6}，可见随机性对于初、末态几乎没有影响，只对中间的演化进程有一点影响，反映了相同的物理现象。
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\linewidth]{6.png}
+    \caption{随机性的影响：图中不同曲线是使用使用不同随机生成的几组$H_e,H_e^I$，对应的演化结果，以及他们初态打乱相位后的演化结果。这些结果收敛到了近乎一致的值，说明随机性带来的哈密顿量的改变只带来了结果的微小的偏离。数据：$\braket{H_s}$（蓝色）、$\braket{H_e}$（红色）、$\braket{H_I}$（灰色）、熵$\frac{S}{S_{max}}$（蓝色）。}
+    \label{fig:6}
+\end{figure}
+\newpage
+
+
+\subsection{不同的耦合强度$E_I$}
+如果考虑$E_I=0$的情形，环境和谐振子之间没有能量流动，各自能量$\braket{H_e},\braket{H_s}$守恒，初态（相干态+环境本征态）就已经达到了“平衡”，由于相干态的性质（见\ref{CoherentStates}节），这个初态经过足够长的时间演化也不会改变。这在某种程度上可以解释图\ref{fig:5}中没有达到“热化”的原因。
+
+首先选取$E_I=0.007$，其余选取与之前相同。得到了如图\ref{fig:7}的结果。两个子系统的能量改变很小，使得平衡时的能量与初始能量有很大的关系，与$E_I=0$的情形类似。论文\cite{e24030316}的作者认为这并不是在说更小的$E_I$对应的平衡用时更长，如果需要符合“热化”，可能需要更大的系统态支撑计算。
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\linewidth]{7.png}
+    \caption{$E_I=0.007$时的图\ref{fig:5}，能量流动变小了很多，不同平衡态的子系统能量差距增大，与$E_I=0$极限近似。数据：$\braket{H_s}$（蓝色）、$\braket{H_e}$（红色）、$\braket{H_I}$（灰色）、熵$\frac{S}{S_{max}}$（蓝色）。}
+    \label{fig:7}
+\end{figure}
+\newpage
+
+图\ref{fig:8}为$E_I=0.1$的情况，更大的环境与系统的耦合使得出现了“热化”的迹象，同时相互作用能量$\braket{H_I}$出现了更大的波动，不过仍然比子系统的能量小很多，称为“弱耦合”的情形。
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\linewidth]{8.png}
+    \caption{$E_I=0.1$，不同初始条件收敛到了同样的子系统能量，反映了“热化”的概念。数据：$\braket{H_s}$（蓝色）、$\braket{H_e}$（红色）、$\braket{H_I}$（灰色）、熵$\cfrac{S}{S_{max}}$（蓝色）。}
+    \label{fig:8}
+\end{figure}
+\newpage
+
+图\ref{fig:9}为$E_I=1$的情况，极强的耦合下，环境和谐振子系统难以区分，强制区分这两个系统没有什么物理意义，这样的系统也没有什么物理实在相对应；不过最终仍然到达了一个子系统能量和熵的平衡态。
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\linewidth]{9.png}
+    \caption{$E_I=1$的情况，反映强耦合，不过仍然有平衡的结果。数据：$\braket{H_s}$（蓝色）、$\braket{H_e}$（红色）、$\braket{H_I}$（灰色）、熵$\cfrac{S}{S_{max}}$（蓝色）。}
+    \label{fig:9}
+\end{figure}
+\newpage
+
+
+\subsection{能量分布}\label{EnergyDist}
+选取不同时刻的图\ref{fig:3}对应状态（$E_I=0.02$），取不同时刻观察谐振子的本征态分布。为了得到真实的能量分布，还应该给出本征态能量密度（单位能量下的本征态数量），得到图\ref{fig:10}的结果。
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\linewidth]{10.png}
+    \caption{图\ref{fig:3}对应状态的谐振子能量分布及其时间演化，以及谐振子能量本征态的密度分布（底部）。}
+    \label{fig:10}
+\end{figure}
+\newpage
+
+查看环境的本征态分布。由于本征态过多，改为统计能量在一定区间内的概率，称作分箱（binned）处理，以后关于环境的分布均进行分箱处理。得到图\ref{fig:11}的结果。能量分布在一段时间后会趋于稳定。
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\linewidth]{11.png}
+    \caption{图\ref{fig:3}对应状态的环境能量分布及其时间演化，以及环境能量本征态的密度分布（底部），数据进行分箱处理。}
+    \label{fig:11}
+\end{figure}
+\newpage
+
+考察不同初始态以及不同耦合强度$E_I$下稳定状态（取$t=10^6$）的能量分布，如图\ref{fig:12}（谐振子）和图\ref{fig:13}（环境）所示。
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\linewidth]{12.png}
+    \caption{$t=10^6$下不同$E_I$，不同初态对应的谐振子能量分布。$E_I=0.1$时，不同初态最后收敛到了相同的能量分布。}
+    \label{fig:12}
+\end{figure}
+\newpage
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\linewidth]{13.png}
+    \caption{$t=10^6$下不同$E_I$，不同初态对应的环境能量分布。$E_I=0.1$时，不同初态最后收敛到了相同的能量分布。}
+    \label{fig:13}
+\end{figure}
+
+在统计物理中，“热化”态中的不同子系统应该具有稳定的能量分布。上面的结果中只有$E_I=0.1$的情况满足这个假设，同时它的末态能量分布还与初始状态无关，与真实的“热化”更加接近。不过由于系统不存在Gibbs形式的（包含温度的）能量，这不是真实的热力学系统。论文\cite{e24030316,Popescu2006}指出，如果考虑“广义规范状态”，理想化的Gibbs能量可以排除上述计算结果中的小震荡。
+\newpage
+
+
+\subsection{全局本征值和本征态}
+\subsubsection{子系统中的能量分布}
+如果$E_I=0$，本征态就是两个子系统本征态的乘积，在子系统中能量只分布在一个值上。利用\ref{EnergyDist}节的方法求解得到在子系统中分布，可以给出本征态“切片”的信息。图\ref{fig:14}和图\ref{fig:15}展示了不同$H_w$本征态的子系统（分别为谐振子和环境）能量分布（$E_I=0.007$）。
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\linewidth]{14.png}
+    \caption{$E_I=0.007$下，部分$H_w$本征态在谐振子子空间中的分布。结果近似于delta函数，具有极小的展宽。}
+    \label{fig:14}
+\end{figure}
+\newpage
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\linewidth]{15.png}
+    \caption{$E_I=0.007$下，部分$H_w$本征态在环境子空间中的分布。结果近似于delta函数，具有极小的展宽。}
+    \label{fig:15}
+\end{figure}
+\newpage
+
+这个结果很接近$E_I=0$的情况，尽管能量分布并不是只在一个子系统本征态上面，但是仍然具有很大的局域性质，表明了弱耦合。图\ref{fig:16}展示了三个相邻的态的子空间能量分布（$E_I=0.007$），尽管这些态的全局能量的差很小，但是能量分布却大不相同，说明了同一总能量的态可以有不同的丰富的结构。
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\linewidth]{16.png}
+    \caption{$E_I=0.007$下，相邻三个$H_w$本征态在两个子空间中的分布。尽管能量非常接近，本征态却大不相同。}
+    \label{fig:16}
+\end{figure}
+\newpage
+
+类似地，取$E_I=0.1$，得到的结果如图\ref{fig:17}（谐振子子空间）、图\ref{fig:18}（环境子空间）、图\ref{fig:19}（相邻能量本征态）。$E_I=0.1$时，系统和环境之间为“弱耦合”，但是耦合强度已经足够使得谐振子和环境的本征态混合起来了；对比图\ref{fig:14}，相邻本征态之间的能量分布差别更加微小了。
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\linewidth]{17.png}
+    \caption{$E_I=0.1$下，部分$H_w$本征态在谐振子子空间中的分布。由于更强的子系统间耦合，能量展宽相比上面更大。}
+    \label{fig:17}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\linewidth]{18.png}
+    \caption{$E_I=0.1$下，部分$H_w$本征态在环境子空间中的分布。由于更强的子系统间耦合，能量展宽相比上面更大。}
+    \label{fig:18}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\linewidth]{19.png}
+    \caption{$E_I=0.1$下，相邻三个$H_w$本征态在两个子空间中的分布。由于更大能量展宽，相邻本征态的区别变小了。}
+    \label{fig:19}
+\end{figure}
+\newpage
+
+\subsubsection{全局空间下的能量分布}
+定义全局的密度矩阵$\rho_w=\ket{\psi}_w\bra{\psi}_w$，以及本征能量的概率分布$P_w(E)=diag(\rho_w^E)$，下面给出了不同$E_I$下，根据\ref{InitState}节方法生成的初始态的全局能量本征态分布，得到图\ref{fig:20}的结果。
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\linewidth]{20.png}
+    \caption{五个初始态的全局能量本征态分布，取$E_I$分别为0.007和0.1，数据经过分箱处理；同时给出本征态密度直方图，可以看到本征态分布几乎与$E_I$没有关系。}
+    \label{fig:20}
+\end{figure}
+\newpage
+
+图\ref{fig:21}展示了图\ref{fig:20}的细节部分，$E_I=0.007$曲线有巨大震荡，不同初始态大不相同。
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.9\linewidth]{21.png}
+    \caption{图\ref{fig:20}前两幅图的局部放大。$E_I=0.007$的曲线会经常到0，而$E_I=0.1$曲线则不会；同时$E_I=0.007$的不同初始态的极值点和几乎为零的点大不相同。}
+    \label{fig:21}
+\end{figure}
+
+
+考虑$E_I=0$的不耦合极限，子系统本征态的乘积$\ket{n}_s\ket{i}_e$就是全局本征态，也就是说$\ket{n}_s\ket{i}_e$在$H_w$本征态分解下可以看作delta函数（只分布在一个全局本征态上）；那么$E_I=0.007$时，假如存在第k个全局本征态$\ket{E_k}$，与其有很大重合（“重合”在论文\cite{e24030316}中为overlap，指的是$\bra{E_k}\ket{n}_s\ket{i}_e$的模长），那么相邻的全局本征态的重合程度会小很多（$\bra{E_{k+1}}\ket{n}_s\ket{i}_e$的模长小很多）。不过$E_I=0.1$的情况下，相邻的本征态在子系统中的能量分布不会有很大的变化了（因为能量相近），表明了能量的重合会更加的平滑（指$\bra{E_k}\ket{n}_s\ket{i}_e$与$\bra{E_{k+1}}\ket{n}_s\ket{i}_e$差别更小）。
+
+类似地，$E_I=0.1$时，本征态在子系统中宽能量分布表明两个初始态尽管子空间中能量分布可能不同，但是在总能量分布中仍然相似（如图\ref{fig:20}所示，总能量被定为25）。此外，由于密度矩阵加上相位可以完整地给出一个态，所以在平衡条件下（参考\ref{Dephasing}节，相位随机分布），密度分布$P_w(E)$与初始相位没有什么关系，也可以给出类似的子系统密度分布$P_s(E)$和$P_e(E)$.
+
+由于初始态是相干态与环境子系统本征态的积，其中相干态虽然不是谐振子的能量本征态，但是具有一定的局域性（注：其密度分布为$P_s(E_n)=e^{-\overline\alpha\alpha}\frac{(\overline\alpha\alpha)^n}{n!},E_n=(n+\frac12)\hbar\omega=n+\frac12$，存在峰值约为$n=\overline\alpha\alpha$处，并且之后会逐渐衰减，呈现在$n$递增时先上升后下降的结构（$|\alpha|>1$时，否则单调递减），具有一定的局域性），基本可以符合上面的讨论。
+
+如果在更大的系统中进行类似的计算，论文\cite{PhysRevLett.82.5181}中指出存在一个“量子极限”，即使在$E_I=0.1$时全局的能量分布可能变成一系列尖锐的情况（参见图\ref{fig:21}）。只有在一定限度内，才会出现$E_I=0.1$下的平整的能量分布，这体现了经典统计力学与量子统计力学的区别之处。
+
+$E_I=0.007$体现了另一种极限，$P_w(E)$更加参差不齐，与经典统计性质不相符。这在某种程度上体现了$E_I=0.1$是更大的系统“热化”行为的主要因素；而$E_I=0.007$则体现了局域、缺乏热化的系统（称为“多体局域化”，Many-Body Localization，参考\cite{annurev-conmatphys-031214-014726}），其不能使得一些从能量上允许交换的能级之间产生完全的联系（例如说总能量相同/近似，但是子系统能量不同的一些态）。不过这样的局域情况相比起来反映了附加的守恒量，尽管对比$E_I=0$极限来说，对称性被部分破坏，使得$\braket{H_s},\braket{H_e}$不再为守恒量。
+
+\subsubsection{有效维度}
+根据\ref{EffectiveDim}节的内容，可以计算不同$E_I$下，不同初始态对应的有效维度，如表\ref{tab:1}所示：
+
+\begin{table}[htbp]
+    \centering
+    \caption{对于不同$E_I$，分布的五个初始态的有效维度$d_{eff,i}^w,i=1,2,3,4,5$及其平均值$d_{eff}^w$（$d_{eff}^w$，式\ref{eq:EffD}）如果$P_w(E)$展宽更宽、更平滑，则有效维度更大，例如说$E_I=0.1$对应初态的有效维度远大于$E_I=0.007$的（参见图\ref{fig:20}和图\ref{fig:21}）。表中还给出了不同初态的结果的标准差$\sigma_{eff}^w$及其占比$\Delta$，以及均值相比于最大情况（$E_I=0.1$）的百分比。}
+    \begin{tabular}{cccccccccc}
+        \hline $E_I$ & $d_{eff,1}^w$ & $d_{eff,2}^w$ & $d_{eff,3}^w$ & $d_{eff,4}^w$ & $d_{eff,5}^w$ & $d_{eff}^w$ & $\sigma_{eff}^w$ & $\Delta$ & $\cfrac{d_{eff}^w}{d_{eff}^w|_{E_I=0.1}}$ \\ \hline
+        1 & 1296.17 & 1785.94 & 1705.88 & 2441.92 & 2782.81 & 2002.54 & 599.11 & 29.92\% & 53.96\% \\
+        0.1 & 3859.35 & 3933.42 & 3974.40 & 3635.24 & 3152.24 & 3710.93 & 386.78 & 9.13\% & 100.00\% \\
+        0.02 & 759.02 & 805.19 & 583.79 & 349.72 & 110.67 & 521.68 & 291.15 & 55.81\% & 14.06\% \\
+        0.007 & 50.43 & 101.61 & 40.80 & 23.39 & 17.66 & 46.78 & 33.36 & 71.30\% & 1.26\% \\ \hline
+    \end{tabular}
+    \label{tab:1}
+\end{table}
+
+$E_I=0.1$和$E_I=0.007$本征态的不同行为可以明显地由$d_{eff}^w$描述。标准差占比$\Delta$也可以度量“散射”的行为，其中$E_I=0.1$时最小，与前文的讨论相符。
+
+\subsection{参数和初态的变化}
+根据前文的讨论可知，为了达到“热化”的效果，$E_I$的取值需要在一定的范围内。不过对于规模更大的系统，“热化”应该是更加平凡的，而“非热化”的行为才是要求特定参数的取值的。由于ACL模型过于简单（但是在计算上是比较耗费时间的），无法给出更多关于初始参数调整等的结论。
+
+前文讲述了初始状态对于平衡的影响，不过初态是精心设计的相干态与环境本征态的积。实际的物理的世界中存在一种熵很低的初态（前文描述的也是，因为其环境部分是一个本征态），虽然一般情况不是这样的。论文\cite{e24030316}指出，低熵初始态往往与宇宙学中的“调优问题”有关。
+
+\subsection{本征态热化假设（Eigenstate Thermalization Hypothesis, ETH）}
+“本征态热化”的概念最早由 Mark Srednicki 于 1994 年提出\cite{PhysRevE.50.888}，旨在解释何时以及为何可以使用平衡态统计力学准确描述孤立的量子力学系统，致力于了解最初在远离平衡状态下制备的系统如何及时演化到似乎处于热平衡的状态\cite{Wiki}，其认为热化系统可以使用全局哈密顿量的本征态来理解。图\ref{fig:16}和图\ref{fig:19}的对比也可以在某种程度上看出来$E_I=0.1$情况下全局本征态在子系统上能量分布更加相似。这说明了$E_I=0.1$情况下的“热化”中，子系统的能量分布由一个个全局本征态分布加起来，而这些都非常相似，反映了本征态热化假设的迹象。图\ref{fig:22}展示了部分全局本征态在子系统上能量分布与图\ref{fig:12}和图\ref{fig:13}上的相似性，不过两者发区别表明ETH并没有在这个系统中完全体现。
+\newpage
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\linewidth]{22.png}
+    \caption{本征态热化假设的验证（$E_I=0.1$）。初始态的子系统能量分布（图\ref{fig:12}和图\ref{fig:13}，为了平衡取$t=10^6$）以及几个全局能量本征态的子系统能量分布：（a）谐振子；（b）环境。（c）本征态的选取：由于初始态能量为25，选取了全局能量为20（粉色线）以及25（绿色线）附近的本征态，每种各三个（对应（a）、（b）上面的三条粉色线和三条绿色线），实际能量在$(20\pm0.0020)$和$(25\pm0.0031)$之间，误差在$0.01\%$量级。}
+    \label{fig:22}
+\end{figure}
+
+
+
+\section{结论}
+本文系统地研究了ACL模型的平衡过程，得到了平衡过程中退相位的现象，退相位可以在热力学温度不存在的情形下发生平衡。尽管热力学温度概念不适用此系统，但是该系统仍然出现了“热化”的现象，即不同初始态最后演化到达了相同的子系统能量分布。当热化成立的时候，全局能量分布是平滑的（图\ref{fig:20}，$E_I=0.1$）；热化不成立的时候总能量分布呈锯齿状（图\ref{fig:21}，$E_I=0.007$）。这样的行为与总能量本征态的内在特征有关，平滑的能量分布与遍历性有关，且在更大的系统中存在一个极限。该现象与实际凝聚态系统中的热化的存在与缺失有一定关系。
+
+尽管ACL模型非常简单，它仍然可以反映某些平衡的因素；由于小的规模和一些非物理原因，部分因素不能展现出来。通过理解ACL系统的一些行为对探索物理定律的选择效应\cite{PhysRevLett.70.1187}有用处，也可以帮助我们理解真实物理世界。
+
+论文\cite{e24030316}于2022年发表，用于纪念 Wojciech Zurek 的70岁生日，他于1951年出生，祖籍波兰，是量子理论方面的理论物理学家。
+
+
+
+\section{和课程的关联}
+\subsection{ZCL 模型（本文中称为 Caldeira-Leggett 模型）}\label{ZCL}
+
+Robert Zwanzig 于1973年在统计物理领域第一次提出 Zwanzig Hamiltonian\cite{Zwanzig1973}，之后A.O. Caldeira 和 A.J. Leggett 两人于 1983 年发表的两篇论文 \cite{CALDEIRA1983587,CALDEIRA1983374}中提出了Caldeira-Leggett 模型（其哈密顿量与 Zwanzig Hamiltonian 相同），用于解释布朗运动。
+
+ZCL 模型将环境用振子代替，一个粒子与很多谐振子耦合，并且处于一个势场中，哈密顿量为\ref{eq:CL}式，如果这个粒子与每个环境粒子之间的相互作用相当于绑上了一根弹簧，环境粒子之间无相互作用，那么哈密顿量写为下面的简化形式：
+\begin{equation}
+    H=\cfrac{p^2}{2m}+V(x)+\sum_j\left[\cfrac{p_x^2}{2m_j}+\cfrac{1}{2}k_j(q_j-x)^2\right]
+    \label{eq:ZCL}
+\end{equation}
+哈密顿运动方程为：
+\begin{equation*}
+\begin{cases}
+    \cfrac{dx}{dt} = \cfrac{p}{m},
+    &\cfrac{dp}{dt} = -\cfrac{dv}{dx} + \sum_jk_j(q_j-x)\\
+    \cfrac{dq_j}{dt} = \cfrac{p_j}{m_j},
+    &\cfrac{dp_j}{dt} = -k_j(q_j-x)
+\end{cases}
+\end{equation*}
+可以求解得到中心粒子的运动方程：
+\begin{equation*}
+    m\cfrac{d^2}{dx^2}+\int_0^tB(t-t')\cfrac{dx}{dt}(t')dt'+V'+B(t)x(0)=\xi(t)
+\end{equation*}
+其中：
+\begin{equation*}
+\begin{cases}
+    B(t) = \sum_jk_j\cos(\omega_jt)\\
+    \xi(t) = \sum_j(q_j(0)k_j\cos(\omega_jt)+p_j(0)\sin(\omega_jt))
+\end{cases}
+\end{equation*}
+考虑随机的$\omega_j$和$k_j$，则$B(t)$可以近似为$\delta$函数，如果$\omega$分布为$dN=N(\omega)d\omega$，对应劲度系数$k(\omega)$，则当
+\begin{equation*}
+    N(\omega)k(\omega)=\cfrac{2\gamma}{\pi}
+\end{equation*}
+时
+\begin{equation*}
+    B(t)=\int_0^\infty N(\omega)k(\omega)\cos(\omega t)d\omega=\gamma\delta(t)
+\end{equation*}
+运动方程变为：
+\begin{equation}
+    m\cfrac{d^2}{dx^2}+\gamma\cfrac{dx}{dt}+V'=\xi(t)(t\neq0)
+\end{equation}
+与朗之万方程相同，反映了布朗运动，对于随机的$\omega_j$和$k_j$，也有$\xi(t)$随机；如果初始状态$q_j(0),p_j(0)$的能量均分定理成立，那么也可以近似得到
+\begin{equation*}
+    \mathbb{E}(\xi(t)\xi(s))\to\gamma k_BT\delta(t-s)
+\end{equation*}
+条件与上面相同。
+
+\subsection{谐振子模型（Simple Harmonic Oscillator, SHO）} \label{SHO}
+经典谐振子哈密顿量为$H = \cfrac{p^2}{2m}+\frac12m\omega^2$，量子力学中的谐振子采用相同的哈密顿量，不过动量算符$p=-i\hbar\cfrac{d}{dx}$，那么定态薛定谔方程为：
+\begin{equation*}
+    \left(-\cfrac{\hbar^2}{2m}\cfrac{d^2}{dx^2}+\frac12m\omega^2\right)\psi(x) = E\psi(x)
+\end{equation*}
+方程的解需要用Hermite多项式表示：
+\begin{equation}
+    \begin{cases}
+        \psi_n(x) = \cfrac{1}{\sqrt{2^nn!}}\left(\cfrac{m\omega}{\pi\hbar}\right)^{\frac14}\exp\left(-\cfrac{m\omega x^2}{2\hbar}\right)H_n\left(\sqrt{\cfrac{m\omega}{\hbar}}x\right)\\
+        E_n = (n+\frac12)\hbar\omega
+    \end{cases}
+\end{equation}
+其中$H_n(x)=(-1)^ne^{x^2}\frac{d^n}{dx^n}e^{-x^2}$。一种更好的描述本征态$\ket{n}$及其之间的关系的方法是利用升降算符（在二次量子化场景下称作产生湮灭算符），定义：
+\begin{equation}
+	a = \sqrt{\cfrac{m\omega}{2\hbar}}x+i\cfrac{p}{\sqrt{2m\hbar\omega}},\quad\quad a^\dagger = \sqrt{\cfrac{m\omega}{2\hbar}}x-i\cfrac{p}{\sqrt{2m\hbar\omega}}
+\end{equation}
+那么：
+\begin{equation*}
+    \begin{aligned}
+        &a^\dagger a\ket{n}=n\ket{n}, a^\dagger\ket{n}=\sqrt{n+1}\ket{n+1}\\
+        &a\ket{n}=\sqrt{n}\ket{n-1}, a\ket{0}=0\ket{}
+    \end{aligned}
+\end{equation*}
+同时（注：$px-xp=-i\hbar$）
+\begin{equation}
+    H=\hbar\omega\left(a^\dagger a+\frac12\right),\quad\quad [a,a^\dagger] = aa^\dagger-a^\dagger a = 1
+\end{equation}
+
+\subsubsection{相干态}\label{CoherentStates}
+相干态是经典简谐振动的量子描述。上述谐振子的本征态只反映了能量（或者经典情况下的振幅）特点，没有反映相位、时间演化等特点。尽管相干态的内容没有在量子力学课堂上学习过，但是由于各种性质的推导基本没有离开量子力学课堂的知识（归一化、谐振子态、矩阵元计算等），故放在这一节。相干态的一种定义为（参考资料：\cite{Coherent-States}）：
+\begin{equation}
+    \ket{\alpha}=e^{-\frac12\overline\alpha\alpha}\sum_{n=0}^{\infty}\cfrac{\alpha^n}{\sqrt{n!}}\ket{n}
+\end{equation}
+注意到$\sum_{n=0}^\infty\left|e^{-\frac12\overline\alpha\alpha}\left(\cfrac{\alpha^n}{\sqrt{n!}}\right)\right|^2=e^{-\overline\alpha\alpha}\sum_{n=0}^\infty\cfrac{(\overline{\alpha}\alpha)^n}{n!}=e^{-|\alpha|^2}e^{|\alpha|^2}=1$，说明态是归一化的。
+
+由于$\ket{n}=\cfrac{(a^\dagger)^n}{\sqrt{n!}}\ket{0}$，上式可以展开为：
+\begin{equation}
+    \ket{\alpha}=e^{-\frac12\overline\alpha\alpha}\sum_{n=0}^{\infty}\cfrac{\alpha^n(a^\dagger)^n}{n!}\ket{0}
+    =e^{-\frac12\overline\alpha\alpha}e^{\alpha a^{\dagger}}\ket{0}
+    =e^{\alpha a^\dagger-\overline{\alpha}a}\ket{0}
+    \label{eq:CS}
+\end{equation}
+即得到了论文\cite{e24030316}附录A中给出的相干态的形式。最后一个等号的证明见\ref{exp}节。
+
+相干态具有如下特点：
+\begin{itemize}
+    \item 相干态是$a$的本征态，本征值为$\alpha$：
+    \begin{equation*}
+        a\ket\alpha=e^{-\frac12\overline\alpha\alpha}\sum_{n=0}^{\infty}\cfrac{\alpha^n}{\sqrt{n!}}a\ket{n}=\alpha e^{-\frac12\overline\alpha\alpha}\sum_{n=1}^{\infty}\cfrac{\alpha^{n-1}}{\sqrt{(n-1)!}}\ket{n-1}=\alpha\ket{\alpha}
+    \end{equation*}
+    它不是$a^\dagger$的本征态：$a^\dagger\ket\alpha=e^{-\frac12\overline\alpha\alpha}\sum_{n=0}^{\infty}\frac{\sqrt{n+1}\alpha^n}{\sqrt{n!}}\ket{n+1}=\cfrac{e^{-\frac12\overline\alpha\alpha}}{\alpha}\sum_{n=1}^{\infty}\frac{n\alpha^n}{\sqrt{n!}}\ket{n}$
+    
+    \item 虽然其是归一化的，但不是正交的：
+    \begin{equation*}
+        \braket{\beta|\alpha}=e^{-\frac12\overline\beta\beta-\frac12\overline\alpha\alpha}\sum_{n=0}^{\infty}\sum_{m=0}^{\infty}\cfrac{\overline{\beta}^n}{\sqrt{n!}}\cfrac{\alpha^m}{\sqrt{m!}}\braket{n|m}=e^{-\frac12\overline\beta\beta-\frac12\overline\alpha\alpha}\sum_{n=0}^{\infty}\cfrac{(\overline{\beta}\alpha)^n}{n!}=e^{-\frac12\overline\beta\beta-\frac12\overline\alpha\alpha+\overline{\beta}\alpha}
+    \end{equation*}
+    
+    \item 含时演化：$\ket{\alpha(t)}=e^{-\frac12\overline\alpha\alpha}\sum_{n=0}^{\infty}\cfrac{\alpha^n}{\sqrt{n!}}\ket{n(t)}$
+    演化的本征态为
+    \begin{equation*}
+        \ket{n(t)}=e^{-i\frac{E_n t}{\hbar}}\ket{n(0)}=e^{-i\frac12\omega t}e^{-in\omega t}\cfrac{(a^\dagger)^n}{\sqrt{n!}}\ket{0}
+    \end{equation*}
+    如果记$a^\dagger(t)=a^\dagger(0)e^{-i\omega t}$，那么有类似的形式$\ket{n(t)}=e^{-i\frac12\omega t}\cfrac{(a^\dagger(t))^n}{\sqrt{n!}}\ket{0}$，开头的$e^{-i\frac12\omega t}$为全局相位项，不改变态的物理含义（矩阵元）。
+    
+    \item 坐标的矩阵元：$\bra{\alpha}x\ket{\alpha}$，利用
+    \begin{equation*}
+        x=\sqrt{\cfrac{\hbar}{2m\omega}}(a+a^\dagger), \quad\quad \bra{\alpha}a^\dagger=(a\ket{\alpha})^\dagger=\bra{\alpha}\overline{\alpha}
+    \end{equation*}
+    如果$a,a^\dagger$改为含时的，那么$a\ket{\alpha}=\alpha e^{i\omega t}\ket{\alpha}$，矩阵元为：
+    \begin{equation}
+        \bra{\alpha(t)}x\ket{\alpha(t)}=\sqrt{\cfrac{\hbar}{2m\omega}}(\alpha e^{i\omega t}+\overline{\alpha}e^{-i\omega t})
+        \label{eq:CS_q}
+    \end{equation}
+    是一个周期震荡的实数，描绘了经典的谐振子运动方程。$\alpha$对应这个振子的振幅。
+
+    \item 波函数展宽：考虑$\bra{\alpha(t)}x^2\ket{\alpha(t)}=\cfrac{\hbar}{2m\omega}\bra{\alpha(t)}(a+a^\dagger)^2\ket{\alpha(t)}$
+    其中
+    \begin{equation*}
+        \bra{\alpha}a^2\ket{\alpha}=(\alpha e^{i\omega t})^2, \bra{\alpha}(a^\dagger)^2\ket{\alpha}=(\overline{\alpha} e^{-i\omega t})^2, \bra{\alpha}a^\dagger a\ket{\alpha}=(\overline{\alpha} e^{-i\omega t})(\alpha e^{i\omega t})=\overline{\alpha}\alpha
+    \end{equation*}
+    \begin{align*}
+        \bra{\alpha}aa^\dagger\ket{\alpha}=&\left(\cfrac{e^{-\frac12\overline\alpha\alpha}}{\overline{\alpha}}\sum_{n=1}^{\infty}\cfrac{n\overline{\alpha}^n}{\sqrt{n!}}\bra{n}e^{i\omega t}\right)\left(\cfrac{e^{-\frac12\overline\alpha\alpha}}{\alpha}\sum_{n=1}^{\infty}\cfrac{n\alpha^n}{\sqrt{n!}}\ket{n}e^{-i\omega t}\right)=\cfrac{e^{-|\alpha|^2}}{\alpha^2}\sum_{n=1}^{\infty}\cfrac{n^2(\overline\alpha\alpha)^n}{n!}\\
+        =&e^{-\frac12|\alpha|^2}\sum_{n=0}^{\infty}\cfrac{(n+1)(\overline\alpha\alpha)^n}{n!}=e^{-|\alpha|^2}\left(\sum_{n=0}^{\infty}\cfrac{(\overline\alpha\alpha)^n}{n!}+\sum_{n=1}^{\infty}\cfrac{(\overline\alpha\alpha)^n}{(n-1)!}\right)\\
+        =&e^{-|\alpha|^2}(e^{\overline\alpha\alpha}+\overline\alpha\alpha e^{\overline\alpha\alpha})=1+\overline\alpha\alpha
+    \end{align*}
+    代入有：$\bra{\alpha(t)}x^2\ket{\alpha(t)}=\cfrac{\hbar}{2m\omega}\left(1+2\overline\alpha\alpha+\alpha^2e^{i2\omega t}+{\overline{\alpha}}^2e^{-2i\omega t}\right)$，那么坐标的方差为：
+    \begin{align*}
+        \mathbb{D}(x^2)=&\bra{\alpha(t)}x^2\ket{\alpha(t)}-(\bra{\alpha(t)}x\ket{\alpha(t)})^2\\
+        =&\cfrac{\hbar}{2m\omega}\left(1+2\overline\alpha\alpha+\alpha^2e^{i2\omega t}+{\overline{\alpha}}^2e^{-2i\omega t}\right)-\cfrac{\hbar}{2m\omega}(\alpha e^{i\omega t}+\overline\alpha e^{-i\omega t})^2\\
+        =&\cfrac{\hbar}{2m\omega}
+    \end{align*}
+    说明相干态波函数不会随着时间展宽。
+\end{itemize}
+
+\subsubsection{指数对易关系}\label{exp}
+在数学中，贝克-坎贝尔-豪斯多夫（Baker–Campbell–Hausdorff）公式描述了非对易算符的指数运算（虽然上课没有学过，但是在上面的证明中有必要引入）：
+\begin{equation*}
+    e^Xe^Y=e^Z,Z = X+Y+\frac12[X,Y]+\frac{1}{3!}(\frac12[X,[X,Y]]+\frac12[[X,Y],Y])+...
+\end{equation*}
+如果对易算符结果$[X,Y]$为常数，那么公式还可以化为以下形式（注：利用$[X,Y]$与$X,Y$均对易的性质）：
+\begin{equation*}
+    e^{X+Y}=e^{-\frac12[X,Y]}e^Xe^Y
+\end{equation*}
+
+利用上述结果可以证明式\ref{eq:CS}：设$X=\alpha a^\dagger,Y=-\overline{\alpha}a$，$[X,Y]=\overline{\alpha}\alpha[a^\dagger,a]=-\overline{\alpha}\alpha$，则
+\begin{equation*}
+    e^{\alpha a^\dagger-\overline{\alpha}a}\ket{0}=e^{-\frac12\overline{\alpha}\alpha}e^{\alpha a^\dagger}e^{-\overline{\alpha}a}\ket{0}
+\end{equation*}
+由于$a\ket{0}=0$，$e^{-\overline{\alpha}a}\ket{0}=\sum_{n=0}^\infty \cfrac{\overline{\alpha}^n}{n!}a^n\ket{0}$，只有$n=0$项非零，所以$e^{-\overline{\alpha}a}\ket{0}=\ket{0}$，代入可以得到要证明的式子：
+\begin{equation*}
+    \ket{\alpha} = e^{-\frac12\overline\alpha\alpha}e^{\alpha a^{\dagger}}\ket{0}=e^{\alpha a^\dagger-\overline{\alpha}a}\ket{0}
+\end{equation*}
+
+
+\subsection{张量积}\label{TensorProduct}
+在电动力学课程学习场论的时候，介绍过张量积的概念：假设$R^{\alpha_1...\alpha_n}$和$S^{\beta_1...\beta_m}$分别为n阶和m阶张量，那么称其张量积为
+\begin{equation*}
+    T^{\alpha_1...\alpha_n\beta_1...\beta_m}=R^{\alpha_1...\alpha_n}S^{\beta_1...\beta_m}
+\end{equation*}
+是一个$n+m$阶张量。
+
+在本报告中提到了张量$s\otimes t$，设$s$用角标$n$表示（$s_n=\ket{n}_s$），$t$用角标$i$表示（$t_i=\ket{i}_{e0}$），那么$(s\otimes t)_{ni} = \ket{n}_s\ket{i}_{e0}$，类似地，哈密顿量（\ref{eq:ACL}式）中的张量积也可以由矩阵元体现：
+\begin{equation}
+    \bra{j}_{e0}\bra{m}_sH\ket{n}_s\ket{i}_{e0}=\bra{m}_sH_s\ket{n}_s\times 1+\bra{m}_sq_s\ket{n}_s\times \bra{j}_{e0}H_e^I\ket{i}_{e0}+1\times\bra{j}_{e0}H_e\ket{i}_{e0}
+\end{equation}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\nocite{*}
+\newpage
+\printbibliography[heading=bibintoc, title=\ebibname]
+
+\appendix
+%\appendixpage
+\addappheadtotoc
+
+\end{document}
